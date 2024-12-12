@@ -1,56 +1,52 @@
 package consumer
 
 import (
+	"encoding/json"
 	"fmt"
-	"log"
+	"time"
 
-	"github.com/streadway/amqp"
+	"github.com/buskarion/rabbitmq-notifications/notification"
+	"github.com/buskarion/rabbitmq-notifications/rabbitmq"
 )
 
-func Start() {
-	// RabbitMQ connection
-	conn, err := amqp.Dial("amqp://guest:guest@localhost:5672/")
+func Start() error {
+	// Create a rabbitmq instance
+	rmq, err := rabbitmq.New("notificationQueue")
 	if err != nil {
-		log.Fatalf("Error trying to connect to RabbitMQ: %s", err)
+		return err
 	}
-	defer conn.Close()
+	defer rmq.Close()
 
-	// Create communication channel
-	ch, err := conn.Channel()
-	if err != nil {
-		log.Fatalf("Error creating channel: %s", err)
-	}
-	defer ch.Close()
-
-	// Declare a queue where the messages will be received
-	q, err := ch.QueueDeclare(
-		"notificationQueue", // queue name
-		true,                // durable: the queue will remain after reboot
-		false,               // autoDelete: the queue will not be deleted
-		false,               // exclusive: the queue can be shared
-		false,               // noWait: we will not wait for a RabbitMQ response
-		nil,                 // additional arguments
+	// Consuming queue messages
+	msgs, err := rmq.Channel.Consume(
+		rmq.Queue.Name,
+		"",
+		true,
+		false,
+		false,
+		false,
+		nil,
 	)
 	if err != nil {
-		log.Fatalf("error declaring queue: %s", err)
-	}
-
-	// Consume queue messages
-	msgs, err := ch.Consume(
-		q.Name, // queue name
-		"",     // consumer do not need a name
-		true,   // autoAck: auto confirm the message reception
-		false,  // exclusive: the consumer can be shared
-		false,  // noLocal: do not consume messages sent by the own channel
-		false,  // noWait: do not wait for response
-		nil,    // additional arguments
-	)
-	if err != nil {
-		log.Fatalf("error consumming messages: %s", err)
+		return fmt.Errorf("Error consumming messages: %w", err)
 	}
 
 	// Loop to proccess messages
-	for d := range msgs {
-		fmt.Printf("Message received: %s\n", d.Body)
+	fmt.Println("\nConsumer is waiting for messages...")
+	for msg := range msgs {
+		var notification notification.ScheduledNotification
+		err := json.Unmarshal(msg.Body, &notification)
+		if err != nil {
+			fmt.Println("error unmarshalling message:", err)
+			continue
+		}
+
+		if time.Now().After(notification.SendAt) {
+			fmt.Printf("Message received: %s\n", msg.Body)
+		} else {
+			fmt.Printf("Message \"%s\" is scheduled to be processed at %s, skipping.\n", notification.Message, notification.SendAt)
+		}
 	}
+
+	return nil
 }

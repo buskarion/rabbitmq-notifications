@@ -1,61 +1,65 @@
 package producer
 
 import (
+	"encoding/json"
 	"fmt"
-	"log"
+	"time"
 
+	"github.com/buskarion/rabbitmq-notifications/notification"
+	"github.com/buskarion/rabbitmq-notifications/rabbitmq"
 	"github.com/streadway/amqp"
 )
 
-func Start() {
-	// Passo 1: estabeler a conexão com o RabbitMQ através do package amqp (protocolo de comunicação de mensagens: Advanced Message Protocol Queuing)
-	conn, err := amqp.Dial("amqp://guest:guest@localhost:5672/")
+func Start() error {
+	// Create rabbitmq instance
+	rmq, err := rabbitmq.New("notificationQueue")
 	if err != nil {
-		log.Fatalf("failed to connect to RabbitMQ: %v", err)
+		return err
 	}
-	defer conn.Close()
+	defer rmq.Close()
 
-	fmt.Println("Connected to RabbitMQ!")
-
-	// Passo 2: criar um canal de comunicação com o servidor do RabbitMQ
-	ch, err := conn.Channel()
-	if err != nil {
-		log.Fatalf("failed to open a channel: %v", err)
-	}
-	defer ch.Close()
-
-	fmt.Println("Channel successfully created!")
-
-	// Passo 3: Declarar a fila
-	q, err := ch.QueueDeclare(
-		"notificationQueue", // Queue name
-		true,                // Durability
-		false,               // Exclusivity
-		false,               // Auto-delete
-		false,               // Do not wait for confirmations
-		nil,                 // Aditional arguments
-	)
-	if err != nil {
-		log.Fatalf("failed to declare a queue: %v", err)
+	// create scheduled rabbitmq-notifications
+	notifications := []notification.ScheduledNotification{
+		{
+			Message: "Message 1",
+			SendAt:  time.Now().Add(10 * time.Second),
+		},
+		{
+			Message: "Message 2",
+			SendAt:  time.Now().Add(60 * time.Second),
+		},
 	}
 
-	fmt.Printf("Queue declarated successfully: %s\n", q.Name)
+	// proccess notifications to send to the queue
+	for _, n := range notifications {
+		sendToQueue(n, rmq.Channel, rmq.Queue.Name)
+	}
 
-	// Passo 4: Publicar uma mensagem na fila
-	body := "Notification test"
+	return nil
+}
+
+func sendToQueue(notification notification.ScheduledNotification, ch *amqp.Channel, queueName string) error {
+	body, err := json.Marshal(notification)
+	if err != nil {
+		return fmt.Errorf("error marshalling notification: %w", err)
+	}
+	fmt.Printf("Sending message %s to the queue\n", notification.Message)
+
 	err = ch.Publish(
-		"",     // Exchange (default)
-		q.Name, // Destination queue
-		false,  // Do not use exclusive Exchange
-		false,  // Do not use auto exchange
+		"",
+		queueName,
+		false,
+		false,
 		amqp.Publishing{
-			ContentType: "text/plain", // Content Type
-			Body:        []byte(body), // Body Message
+			ContentType: "text/plain",
+			Body:        body,
 		},
 	)
+
 	if err != nil {
-		log.Fatalf("failed to publish a message: %v", err)
+		return fmt.Errorf("Error sending message to queue: %w", err)
 	}
 
-	fmt.Printf("Message sent: %s\n", body)
+	fmt.Printf("Message \"%s\" sent to the queue \"%s\" at %s\n", body, queueName, time.Now())
+	return nil
 }
