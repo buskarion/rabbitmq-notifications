@@ -1,4 +1,4 @@
-package main
+package producer
 
 import (
 	"fmt"
@@ -7,7 +7,7 @@ import (
 	"github.com/streadway/amqp"
 )
 
-func main() {
+func Start() {
 	// Passo 1: estabeler a conexão com o RabbitMQ através do package amqp (protocolo de comunicação de mensagens: Advanced Message Protocol Queuing)
 	conn, err := amqp.Dial("amqp://guest:guest@localhost:5672/")
 	if err != nil {
