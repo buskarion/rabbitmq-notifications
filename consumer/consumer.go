@@ -7,11 +7,12 @@ import (
 
 	"github.com/buskarion/rabbitmq-notifications/notification"
 	"github.com/buskarion/rabbitmq-notifications/rabbitmq"
+	"github.com/streadway/amqp"
 )
 
 func Start() error {
 	// Create a rabbitmq instance
-	rmq, err := rabbitmq.New("notificationQueue")
+	rmq, err := rabbitmq.New("notificationQueue", "notificationDLQ")
 	if err != nil {
 		return err
 	}
@@ -39,6 +40,39 @@ func Start() error {
 		if err != nil {
 			fmt.Println("error unmarshalling message:", err)
 			continue
+		}
+
+		retryCount := 0
+		maxRetries := 3
+
+		// retry logic
+		for retryCount < maxRetries {
+			if time.Now().After(notification.SendAt) {
+				// Process the notification
+				fmt.Printf("Message received: %s\n", msg.Body)
+			} else {
+				retryCount++
+				fmt.Printf("Retrying message \"%s\" (%d/%d)\n", notification.Message, retryCount, maxRetries)
+				time.Sleep(time.Duration(retryCount) * time.Second) // exponential backoff
+			}
+		}
+
+		// if we exhausted retries, move the message to notificationDLQ
+		if retryCount >= maxRetries {
+			fmt.Printf("Message \"%s\" failed after %d retries. Moving to DLQ.\n", notification.Message, maxRetries)
+			err := rmq.Channel.Publish(
+				"",
+				rmq.DeadLetterQueue.Name,
+				false,
+				false,
+				amqp.Publishing{
+					ContentType: "application/json",
+					Body:        msg.Body,
+				},
+			)
+			if err != nil {
+				fmt.Println("Error moving message do DLQ:", err)
+			}
 		}
 
 		if time.Now().After(notification.SendAt) {
