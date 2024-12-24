@@ -19,6 +19,9 @@ func SendNotification(
 		return nil
 	}
 
+	notification.Status = "sent"
+	fmt.Printf("Notification \"%s\" status updated to sent at: %s\n", notification.Message, notification.SendAt)
+
 	// Publish the message on the queue
 	body := notification.Message
 	err := rmq.Channel.Publish(
