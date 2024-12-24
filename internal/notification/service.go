@@ -2,7 +2,10 @@ package notification
 
 import "time"
 
-func CreateNotification(message string, sendAt time.Time) *ScheduledNotification {
+type Service struct {
+}
+
+func (s *Service) CreateNotification(message string, sendAt time.Time) *ScheduledNotification {
 	return &ScheduledNotification{
 		Message: message,
 		SendAt:  sendAt,
@@ -10,6 +13,6 @@ func CreateNotification(message string, sendAt time.Time) *ScheduledNotification
 	}
 }
 
-func UpdateStatus(notification *ScheduledNotification, status string) {
+func (s *Service) pdateStatus(notification *ScheduledNotification, status string) {
 	notification.Status = status
 }

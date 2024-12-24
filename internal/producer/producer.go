@@ -1,6 +1,7 @@
 package producer
 
 import (
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -16,22 +17,26 @@ func SendNotification(
 	// verify if the notification is on time be sent
 	if time.Now().Before(notification.SendAt) {
 		fmt.Printf("Notification for \"%s\" is scheduled to be sent at: %s\n", notification.Message, notification.SendAt)
-		return nil
+		time.Sleep(time.Until(notification.SendAt))
 	}
 
 	notification.Status = "sent"
 	fmt.Printf("Notification \"%s\" status updated to sent at: %s\n", notification.Message, notification.SendAt)
 
 	// Publish the message on the queue
-	body := notification.Message
-	err := rmq.Channel.Publish(
+	body, err := json.Marshal(notification)
+	if err != nil {
+		return fmt.Errorf("error marshilling notification: %w", err)
+	}
+
+	err = rmq.Channel.Publish(
 		"",
 		rmq.Queue.Name,
 		false,
 		false,
 		amqp.Publishing{
 			ContentType: "text/plain",
-			Body:        []byte(body),
+			Body:        body,
 		},
 	)
 
