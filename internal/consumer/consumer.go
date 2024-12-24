@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/buskarion/rabbitmq-notifications/notification"
-	"github.com/buskarion/rabbitmq-notifications/rabbitmq"
+	"github.com/buskarion/rabbitmq-notifications/internal/notification"
+	"github.com/buskarion/rabbitmq-notifications/internal/rabbitmq"
 	"github.com/streadway/amqp"
 )
 
