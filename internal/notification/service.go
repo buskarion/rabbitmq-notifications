@@ -13,6 +13,6 @@ func (s *Service) CreateNotification(message string, sendAt time.Time) *Schedule
 	}
 }
 
-func (s *Service) pdateStatus(notification *ScheduledNotification, status string) {
+func (s *Service) UpdateStatus(notification *ScheduledNotification, status string) {
 	notification.Status = status
 }
