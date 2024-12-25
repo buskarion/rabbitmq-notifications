@@ -13,6 +13,7 @@ import (
 func SendNotification(
 	notification *notification.ScheduledNotification,
 	rmq *rabbitmq.RabbitMq,
+	service *notification.Service,
 ) error {
 	// verify if the notification is on time be sent
 	if time.Now().Before(notification.SendAt) {
@@ -20,7 +21,7 @@ func SendNotification(
 		time.Sleep(time.Until(notification.SendAt))
 	}
 
-	notification.Status = "sent"
+	service.UpdateStatus(notification, "sent")
 	fmt.Printf("Notification \"%s\" status updated to sent at: %s\n", notification.Message, notification.SendAt)
 
 	// Publish the message on the queue

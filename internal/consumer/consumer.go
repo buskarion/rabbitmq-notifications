@@ -8,7 +8,7 @@ import (
 	"github.com/buskarion/rabbitmq-notifications/internal/rabbitmq"
 )
 
-func ConsumeNotification(rmq *rabbitmq.RabbitMq) error {
+func ConsumeNotification(rmq *rabbitmq.RabbitMq, service *notification.Service) error {
 	// consume messages from the queue
 	msgs, err := rmq.Channel.Consume(
 		rmq.Queue.Name,
@@ -34,7 +34,7 @@ func ConsumeNotification(rmq *rabbitmq.RabbitMq) error {
 
 		// process notification
 		fmt.Printf("Processing message: %s\n", notification.Message)
-		notification.Status = "processed"
+		service.UpdateStatus(&notification, "processed")
 		fmt.Printf("Notification \"%s\"  status updated to %s\n", notification.Message, notification.Status)
 	}
 
