@@ -2,23 +2,51 @@ package main
 
 import (
 	"log"
+	"time"
 
-	"github.com/gin-gonic/gin"
+	"github.com/buskarion/rabbitmq-notifications/internal/consumer"
+	"github.com/buskarion/rabbitmq-notifications/internal/notification"
+	"github.com/buskarion/rabbitmq-notifications/internal/producer"
+	"github.com/buskarion/rabbitmq-notifications/internal/rabbitmq"
 )
 
 func main() {
-	// Create a new gin router
-	r := gin.Default()
+	// start notification service
+	notificationService := &notification.Service{}
 
-	// Define a simple route for test
-	r.GET("/ping", func(c *gin.Context) {
-		c.JSON(200, gin.H{
-			"message": "pong",
-		})
-	})
-
-	// Start the server on port 8080
-	if err := r.Run(":8080"); err != nil {
-		log.Fatal("Unable to start server: ", err)
+	// setup a rabbitMQ instance
+	rmq, err := rabbitmq.New("notificationQueue")
+	if err != nil {
+		log.Fatalf("Error initializing RabbitMQ: %v", err)
 	}
+	defer rmq.Close()
+
+	// create new notification
+	notifications := []*notification.ScheduledNotification{
+		notificationService.CreateNotification("M_ONE", time.Now().Add(5*time.Second)),
+		notificationService.CreateNotification("M_TWO", time.Now().Add(10*time.Second)),
+		notificationService.CreateNotification("M_THREE", time.Now().Add(20*time.Second)),
+	}
+
+	// send notifications with producer
+	for _, n := range notifications {
+		err := producer.SendNotification(n, rmq, notificationService)
+		if err != nil {
+			log.Fatalf("Error sending notification: %v", err)
+		}
+
+		// simulates the time to send a notification to the queue
+		time.Sleep(2 * time.Second)
+	}
+
+	log.Println("\nAll notifications sent. \nStarting to consume notifications...")
+
+	// consume notifications with consumer
+	err = consumer.ConsumeNotification(rmq, notificationService)
+	if err != nil {
+		log.Fatalf("Error consumming notifications: %v", err)
+	}
+
+	log.Println("All messages consumed.")
+
 }
