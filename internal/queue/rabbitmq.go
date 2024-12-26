@@ -64,6 +64,22 @@ func New(queueName string) (*RabbitMq, error) {
 	}, nil
 }
 
+func (r *RabbitMq) Consume(
+	queueName string, consumerTag string,
+	autoAck, exclusive, noWait bool,
+	args amqp.Table,
+) (<-chan amqp.Delivery, error) {
+	return r.Channel.Consume(queueName, consumerTag, autoAck, exclusive, noWait, false, args)
+}
+
+func (r *RabbitMq) Publish(
+	exchange, routingKey string,
+	mandatory, immediate bool,
+	msg amqp.Publishing,
+) error {
+	return r.Channel.Publish(exchange, routingKey, mandatory, immediate, msg)
+}
+
 func (r *RabbitMq) Close() {
 	if err := r.Channel.Close(); err != nil {
 		log.Printf("Error closing the channel: %v", err)

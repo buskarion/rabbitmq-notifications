@@ -7,17 +7,16 @@ import (
 	"time"
 
 	"github.com/buskarion/rabbitmq-notifications/internal/notification"
-	"github.com/buskarion/rabbitmq-notifications/internal/rabbitmq"
+	rabbitmq "github.com/buskarion/rabbitmq-notifications/internal/queue"
 	"github.com/streadway/amqp"
 )
 
 func ConsumeNotification(rmq *rabbitmq.RabbitMq, service *notification.Service) error {
 	// consume messages from the queue
-	msgs, err := rmq.Channel.Consume(
+	msgs, err := rmq.Consume(
 		rmq.Queue.Name,
 		"",
 		true,
-		false,
 		false,
 		false,
 		nil,
